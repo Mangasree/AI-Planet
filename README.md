@@ -19,7 +19,8 @@ A fully , private, and intelligent question-answering system for personal docume
 
 ## 🧱 Architecture Overview
 
-![Alt Text]("")
+![flowchart bg](https://github.com/user-attachments/assets/1ecd9760-cfa1-44da-8c25-8f054cb8801a)
+
 
 
 ### 🧩 Components Breakdown
