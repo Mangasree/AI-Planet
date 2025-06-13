@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Q&A</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <nav>
+        <div class="logo">AI Planet</div>
+        <button class="upload-btn" id="openUploadModal">Upload File</button>
+    </nav>
+
+    <div class="container">
+        <div class="chat-area" id="chatArea">
+            <div class="ai-message">
+                Welcome to AIPlanet! Please upload a document to start asking questions.
+            </div>
+        </div>
+        <div class="input-area">
+            <textarea id="questionInput" placeholder="Ask your question here..."></textarea>
+            <button id="askButton">Ask</button>
+        </div>
+    </div>
+
+    <div id="uploadModal" class="upload-modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Upload Document</h2>
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt">
+            <button id="uploadButton" style="margin-top: 15px;">Upload</button>
+            <div id="status-message" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const openUploadModalBtn = document.getElementById('openUploadModal');
+        const uploadModal = document.getElementById('uploadModal');
+        const closeButton = document.querySelector('.close-button');
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const statusMessage = document.getElementById('status-message');
+        const chatArea = document.getElementById('chatArea');
+        const questionInput = document.getElementById('questionInput');
+        const askButton = document.getElementById('askButton');
+
+        // Show upload modal
+        openUploadModalBtn.onclick = function() {
+            uploadModal.style.display = 'flex'; // Use flex to center
+            statusMessage.textContent = ''; // Clear previous messages
+            fileInput.value = ''; // Clear selected file
+        }
+
+        // Hide upload modal
+        closeButton.onclick = function() {
+            uploadModal.style.display = 'none';
+        }
+
+        // Hide modal if clicked outside
+        window.onclick = function(event) {
+            if (event.target == uploadModal) {
+                uploadModal.style.display = 'none';
+            }
+        }
+
+        // Handle file upload
+        uploadButton.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                statusMessage.textContent = 'Please select a file to upload.';
+                statusMessage.style.color = 'red';
+                return;
+            }
+
+            statusMessage.textContent = 'Uploading and processing file... This may take a moment.';
+            statusMessage.style.color = 'blue';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusMessage.textContent = data.message;
+                    statusMessage.style.color = 'green';
+                    setTimeout(() => {
+                        uploadModal.style.display = 'none'; // Close modal after successful upload
+                        addMessage('AI', 'File uploaded successfully! You can now ask questions about it.');
+                    }, 1500); // Give user a moment to read success message
+                } else {
+                    statusMessage.textContent = `Error: ${data.error || 'Something went wrong during upload.'}`;
+                    statusMessage.style.color = 'red';
+                }
+            } catch (error) {
+                statusMessage.textContent = `Network error: ${error.message}`;
+                statusMessage.style.color = 'red';
+                console.error('Upload error:', error);
+            }
+        });
+
+        // Function to add messages to the chat area
+        function addMessage(sender, message) {
+            const messageContainer = document.createElement('div');
+            messageContainer.classList.add('message-container');
+
+            const messageDiv = document.createElement('div');
+            if (sender === 'User') {
+                messageDiv.classList.add('user-message');
+            } else {
+                messageDiv.classList.add('ai-message');
+            }
+            messageDiv.textContent = message;
+            messageContainer.appendChild(messageDiv);
+            chatArea.appendChild(messageContainer);
+            chatArea.scrollTop = chatArea.scrollHeight; // Scroll to bottom
+        }
+
+        // Handle asking questions
+        askButton.addEventListener('click', async () => {
+            const question = questionInput.value.trim();
+            if (!question) {
+                alert('Please enter a question.');
+                return;
+            }
+
+            addMessage('User', question);
+            questionInput.value = ''; // Clear input field
+
+            // Indicate thinking state
+            addMessage('AI', 'Thinking...'); // Temporary message
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                const data = await response.json();
+
+                // Remove 'Thinking...' message
+                const lastMessage = chatArea.lastChild;
+                if (lastMessage && lastMessage.querySelector('.ai-message').textContent === 'Thinking...') {
+                    chatArea.removeChild(lastMessage);
+                }
+
+                if (response.ok) {
+                    addMessage('AI', data.answer);
+                } else {
+                    addMessage('AI', `Error: ${data.error || 'Could not get an answer.'}`);
+                }
+            } catch (error) {
+                console.error('Ask question error:', error);
+                // Remove 'Thinking...' message
+                const lastMessage = chatArea.lastChild;
+                if (lastMessage && lastMessage.querySelector('.ai-message').textContent === 'Thinking...') {
+                    chatArea.removeChild(lastMessage);
+                }
+                addMessage('AI', `Network error: ${error.message}. Please try again.`);
+            }
+        });
+
+        // Allow pressing Enter to ask questions
+        questionInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) { // Prevent new line on shift+enter
+                event.preventDefault(); // Prevent default Enter behavior (new line)
+                askButton.click();
+            }
+        });
+    </script>
+</body>
+</html>

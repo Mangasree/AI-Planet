@@ -1,0 +1,6 @@
+Flask
+Flask-Cors
+werkzeug # Often a Flask dependency, but included for clarity
+llama-index-core
+llama-index-embeddings-huggingface
+llama-index-llms-ollama
